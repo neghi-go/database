@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-siddon/siddon/database"
+	"github.com/neghi-go/database"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 )

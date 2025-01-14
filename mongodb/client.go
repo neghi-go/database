@@ -2,16 +2,15 @@ package mongodb
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-var mongo_sync sync.Once
-
-var mongo_instance *mongo.Client
+func initClient(url string) (*mongo.Client, error) {
+	return  mongo.Connect(options.Client().ApplyURI(url))
+}
 
 type mongoDatabase struct {
 	db *mongo.Database
@@ -20,19 +19,18 @@ type mongoDatabase struct {
 func New(url, db string) (*mongoDatabase, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
-	mongo_sync.Do(func() {
-		client, err := mongo.Connect(options.Client().ApplyURI(url))
-		if err != nil {
-			panic(err)
-		}
-		mongo_instance = client
-	})
-	if err := mongo_instance.Ping(ctx, nil); err != nil {
+	client, err := initClient(url)
+	if err != nil {
 		return nil, err
 	}
-
+	if err := client.Ping(ctx, nil); err != nil {
+		return nil, err
+	}
 	return &mongoDatabase{
-		db: mongo_instance.Database(db),
+		db: client.Database(db),
 	}, nil
+}
+
+func (m *mongoDatabase) Disconnect(ctx context.Context) error {
+	return m.db.Client().Disconnect(ctx)
 }

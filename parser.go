@@ -1,35 +1,3 @@
-// package Siddon contains the implementation of the parser that marshals/converts a struct to a readable format
-// that other pacakges can use
-
-// it expects the struct to have a tag of  `db:"<field-name>"` and or `attr:"<attribute-name>"` in order to
-// parse them correctly.
-
-// Example:
-
-// type User struct {
-// 	ID      string    `db:"id" attr:"required,mongoid"`
-// 	Name    string    `db:"name" attr:"min=2,max=20"`
-// 	Email   string    `db:"email" attr:"email,required"`
-// 	Age     int       `db:"age" attr:"required"`
-// 	DOB     time.Time `db:"date_of_birth" attr:"required,tz"`
-// 	Balance float32   `db:"balance"`
-// 	Street  Address   `attr:"embed"`
-// 	Friends []Friends `db:"friends"`
-// }
-
-// type Address struct {
-// 	Street  string `db:"street"`
-// 	State   string `db:"state"`
-// 	ZipCode string `db:"zip_code"`
-// 	Country string `db:"country"`
-// }
-
-// type Friends struct {
-// 	Name  string `db:"name"`
-// 	Email string `db:"email" attr:"email"`
-// 	Phone uint   `db:"phone" attr:"required"`
-// }
-
 package database
 
 import (
@@ -37,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 )
 
 const (
@@ -47,6 +16,17 @@ var (
 	ErrNotStruct = errors.New("error: invalid type received. expected type %s, but got type %s")
 )
 
+var pool = sync.Pool{
+    New: func() any {
+        return &parsedField{
+            fieldValue: reflect.Value{},
+            fieldName: "",
+            fieldTag: make([]string, 0),
+        }
+    },
+}
+
+
 // ParserField is contains information about the fields in the struct that was parsed,
 // information pertaining to its value, type, name, structtags etc
 type parsedField struct {
@@ -55,8 +35,14 @@ type parsedField struct {
 	fieldTag   []string
 }
 
+func(p *parsedField)Release(){
+    p.fieldName= ""
+    p.fieldTag = make([]string, 0)
+    p.fieldValue = reflect.Value{}
+}
+
 func parse(struct_tag string, obj interface{}) ([]parsedField, error) {
-	var sliceOfParsed []parsedField
+    sliceOfParsed := make([]parsedField, 0)
 	v := reflect.ValueOf(obj)
 
 	if v.Kind() != reflect.Struct {
@@ -65,7 +51,7 @@ func parse(struct_tag string, obj interface{}) ([]parsedField, error) {
 	t := v.Type()
 	for i := 0; i < v.NumField(); i++ {
 		field := t.Field(i)
-		var single parsedField
+        single, _ := pool.Get().(*parsedField)
 		single.fieldName = field.Name
 		single.fieldValue = v.Field(i)
 
@@ -80,7 +66,9 @@ func parse(struct_tag string, obj interface{}) ([]parsedField, error) {
 		}
 		attr := strings.Split(def, ",")
 		single.fieldTag = attr
-		sliceOfParsed = append(sliceOfParsed, single)
+		sliceOfParsed = append(sliceOfParsed, *single)
+        single.Release()
+        pool.Put(single)
 	}
 
 	return sliceOfParsed, nil

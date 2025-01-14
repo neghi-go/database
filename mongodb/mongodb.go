@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-siddon/siddon/database"
+	"github.com/neghi-go/database"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -117,7 +117,7 @@ func (m *MongoModel[T]) Order(order database.D) database.Model[T] {
 			val = 1
 		default:
 			fmt.Println("unsupported Order Key type")
-			break
+			return nil
 		}
 		m.order = append(m.order, bson.E{Key: o.Key(), Value: val})
 	}

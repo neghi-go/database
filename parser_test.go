@@ -49,3 +49,19 @@ func Test_parser_Parse(t *testing.T) {
 		})
 	}
 }
+func Benchmark(b *testing.B) {
+	type TestStruct struct {
+		Name string `test:"name"`
+		Age  int    `test:"age"`
+	}
+	user := TestStruct{Name: "jon", Age: 20}
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 1000; j++ {
+			_, err := parse("test", user)
+			if err != nil {
+				b.Error(err)
+			}
+
+		}
+	}
+}

@@ -3,15 +3,13 @@ package mongodb
 import (
 	"errors"
 
-	"github.com/go-siddon/siddon/database"
+	"github.com/neghi-go/database"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-const (
-	mongoID = "_id"
-)
+
 
 func getIndexes[T any](model T) ([]mongo.IndexModel, error) {
 	var res []mongo.IndexModel
