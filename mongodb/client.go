@@ -4,12 +4,17 @@ import (
 	"context"
 	"time"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 func initClient(url string) (*mongo.Client, error) {
-	return  mongo.Connect(options.Client().ApplyURI(url))
+	registry := mongoRegistry
+	registry.RegisterTypeEncoder(tUUID, bson.ValueEncoderFunc(uuidEncodeValue))
+	registry.RegisterTypeDecoder(tUUID, bson.ValueDecoderFunc(uuidDecodeValue))
+
+	return mongo.Connect(options.Client().ApplyURI(url).SetRegistry(registry))
 }
 
 type mongoDatabase struct {

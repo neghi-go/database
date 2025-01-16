@@ -3,9 +3,16 @@ package database
 import (
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestEncodeModel(t *testing.T) {
+	parsed_time, err := time.Parse(time.DateOnly, "2025-12-05")
+	if err != nil {
+		t.Error(err)
+	}
 	type args struct {
 		obj interface{}
 	}
@@ -59,6 +66,29 @@ func TestEncodeModel(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Test UUID and Time",
+			args: args{
+				obj: struct {
+					ID        uuid.UUID `db:"id"`
+					CreatedAt time.Time `db:"created_at"`
+				}{
+					ID:        uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
+					CreatedAt: parsed_time,
+				},
+			},
+			want: M{
+				{
+					Key:   "id",
+					Value: uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
+				},
+				{
+					Key:   "created_at",
+					Value: parsed_time,
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -76,7 +106,9 @@ func TestEncodeModel(t *testing.T) {
 
 func TestDecodeModel(t *testing.T) {
 	type user struct {
-		Jon string `db:"jon"`
+		ID        uuid.UUID `db:"id"`
+		Jon       string    `db:"jon"`
+		CreatedAt time.Time `db:"created_at"`
 	}
 	var res user
 	type args struct {
@@ -99,7 +131,7 @@ func TestDecodeModel(t *testing.T) {
 			name: "Test Pointer Struct",
 			args: args{
 				obj:  &res,
-				data: M{P{Key: "jon", Value: "jon"}}},
+				data: M{P{Key: "jon", Value: "jon"}, P{Key: "id", Value: uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")}, P{Key: "created_at", Value: time.Now()}}},
 			wantErr: false,
 		},
 	}
@@ -194,41 +226,32 @@ func Test_getFieldname(t *testing.T) {
 			args: args{
 				fieldTags: []string{
 					propertyRequired,
-					propertyIndex,
-					propertyUnique,
 				},
 			},
-			want: "",
+			want: propertyRequired,
 		},
 		{
 			name: "Check Index Field",
 			args: args{
 				fieldTags: []string{
-					propertyRequired,
 					propertyIndex,
-					propertyUnique,
 				},
 			},
-			want: "",
+			want: propertyIndex,
 		},
 		{
 			name: "Check Unique Field",
 			args: args{
 				fieldTags: []string{
-					propertyRequired,
-					propertyIndex,
 					propertyUnique,
 				},
 			},
-			want: "",
+			want: propertyUnique,
 		},
 		{
 			name: "Check Valid Field",
 			args: args{
 				fieldTags: []string{
-					propertyRequired,
-					propertyIndex,
-					propertyUnique,
 					"name",
 				},
 			},

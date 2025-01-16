@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/neghi-go/database"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -61,6 +62,53 @@ func TestRegisterModel(t *testing.T) {
 			args: args{
 				conn:  mgd,
 				coll:  "users",
+				model: UserModel{},
+			},
+			want:    &MongoModel[UserModel]{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := RegisterModel(tt.args.conn, tt.args.coll, tt.args.model)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RegisterModel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			require.IsType(t, got, tt.want)
+		})
+	}
+
+}
+
+func TestRegisterUUIDModel(t *testing.T) {
+
+	mgd, err := New("mongodb://"+test_url, "test-db")
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	type UserModel struct {
+		ID    uuid.UUID `db:"id,index,unique"`
+		Email string    `db:"email,required,index,unique"`
+		Name  string    `db:"name,required"`
+	}
+	type args struct {
+		conn  *mongoDatabase
+		coll  string
+		model UserModel
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    database.Model[UserModel]
+		wantErr bool
+	}{
+		{
+			name: "Test Register User Two Model",
+			args: args{
+				conn:  mgd,
+				coll:  "users-two",
 				model: UserModel{},
 			},
 			want:    &MongoModel[UserModel]{},

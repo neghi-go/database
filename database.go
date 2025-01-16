@@ -6,6 +6,9 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -17,6 +20,7 @@ const (
 	propertyIndex    = "index"
 	propertyUnique   = "unique"
 	propertyMongoID  = "mongoid"
+	propertyUUID     = "uuid"
 )
 
 type P struct {
@@ -51,7 +55,7 @@ func EncodeModel(obj interface{}) (M, error) {
 		case reflect.String:
 			val = p.fieldValue.String()
 		default:
-			return nil, errors.New("case not provided")
+			val = p.fieldValue.Interface()
 		}
 
 		var key string
@@ -88,7 +92,27 @@ func DecodeModel(obj interface{}, data M) error {
 				tags := strings.Split(p.Type().Field(i).Tag.Get(databaseTag), ",")
 				tag := getFieldname(tags)
 				if tag == d.Key {
-					field.Set(reflect.ValueOf(d.Value))
+					switch field.Type() {
+					case reflect.TypeOf(uuid.UUID{}):
+						if str, ok := d.Value.(string); ok {
+							parsedUUID, err := uuid.Parse(str)
+							if err != nil {
+								return errors.New("invalid uuid field provided")
+							}
+							field.Set(reflect.ValueOf(parsedUUID))
+						}
+					case reflect.TypeOf(time.Time{}):
+						if str, ok := d.Value.(string); ok {
+							parsedTime, err := time.Parse(time.RFC3339, str)
+							if err != nil {
+								return errors.New("invalid time field provided")
+							}
+							field.Set(reflect.ValueOf(parsedTime))
+						}
+					default:
+						field.Set(reflect.ValueOf(d.Value))
+					}
+
 				}
 			}
 		}
@@ -104,8 +128,6 @@ func checkTag(fieldTags []string, tag string) bool {
 func getFieldname(fieldTags []string) string {
 	for _, tags := range fieldTags {
 		switch tags {
-		case propertyIndex, propertyRequired, propertyUnique:
-			continue
 		case propertyMongoID:
 			return "_id"
 		default:
