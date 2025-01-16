@@ -79,7 +79,6 @@ func EncodeModel(obj interface{}) (M, error) {
 
 func DecodeModel(obj interface{}, data M) error {
 	v := reflect.ValueOf(obj)
-
 	if v.Kind() != reflect.Pointer {
 		return errors.New("expect a pointer to a struct")
 	}
@@ -94,20 +93,12 @@ func DecodeModel(obj interface{}, data M) error {
 				if tag == d.Key {
 					switch field.Type() {
 					case reflect.TypeOf(uuid.UUID{}):
-						if str, ok := d.Value.(string); ok {
-							parsedUUID, err := uuid.Parse(str)
-							if err != nil {
-								return errors.New("invalid uuid field provided")
-							}
-							field.Set(reflect.ValueOf(parsedUUID))
+						if str, ok := d.Value.(uuid.UUID); ok {
+							field.Set(reflect.ValueOf(str))
 						}
 					case reflect.TypeOf(time.Time{}):
-						if str, ok := d.Value.(string); ok {
-							parsedTime, err := time.Parse(time.RFC3339, str)
-							if err != nil {
-								return errors.New("invalid time field provided")
-							}
-							field.Set(reflect.ValueOf(parsedTime))
+						if str, ok := d.Value.(time.Time); ok {
+							field.Set(reflect.ValueOf(str))
 						}
 					default:
 						field.Set(reflect.ValueOf(d.Value))
@@ -151,7 +142,7 @@ type Model[T any] interface {
 	Order(order D) Model[T]
 	Count() (count int64, err error)
 
-	First() (*T, error)
+	FindFirst() (*T, error)
 	Find() ([]*T, error)
 
 	//UPDATE

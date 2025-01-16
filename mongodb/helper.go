@@ -3,13 +3,12 @@ package mongodb
 import (
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/neghi-go/database"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
-
-
 
 func getIndexes[T any](model T) ([]mongo.IndexModel, error) {
 	var res []mongo.IndexModel
@@ -61,6 +60,17 @@ func convertFromBson[T any](obj T, doc bson.D) error {
 		switch d.Value.(type) {
 		case bson.ObjectID:
 			val = d.Value.(bson.ObjectID).Hex()
+		case bson.DateTime:
+			t := d.Value.(bson.DateTime).Time()
+			val = t
+		case bson.Binary:
+			t, ok := d.Value.(bson.Binary)
+			if !ok {
+				return errors.New("invalid doc provided")
+			}
+			if t.Subtype == 4 {
+				val, _ = uuid.FromBytes(t.Data)
+			}
 		default:
 			val = d.Value
 		}

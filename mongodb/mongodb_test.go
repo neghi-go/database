@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/neghi-go/database"
@@ -126,4 +127,64 @@ func TestRegisterUUIDModel(t *testing.T) {
 		})
 	}
 
+}
+
+func TestModel(t *testing.T) {
+	mgd, err := New("mongodb://"+test_url, "test")
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+	type UserModel struct {
+		ID        uuid.UUID `db:"id,index,unique"`
+		Email     string    `db:"email,required,index,unique"`
+		Name      string    `db:"name,required"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+
+	model, err := RegisterModel(mgd, "users", UserModel{})
+	if err != nil {
+		t.Errorf("Error: %v", err)
+	}
+
+	t.Run("Create User", func(t *testing.T) {
+		u := UserModel{
+			ID:        uuid.MustParse("e527865d-c83e-4c21-a54b-275f057ecb56"),
+			Email:     "jon@doe.com",
+			Name:      "Jon Doe",
+			CreatedAt: time.Now().UTC(),
+		}
+		err := model.WithContext(context.Background()).Save(u)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("Find User By Email", func(t *testing.T) {
+		u, err := model.WithContext(context.Background()).Filter(database.SetParams(database.SetFilter("email", "jon@doe.com"))).FindFirst()
+		require.NoError(t, err)
+		require.NotEmpty(t, u)
+	})
+
+	t.Run("Update By ID", func(t *testing.T) {
+		err := model.WithContext(context.Background()).Filter(database.SetParams(database.SetFilter("id", uuid.MustParse("e527865d-c83e-4c21-a54b-275f057ecb56")))).UpdateOne(UserModel{
+			Email: "jane@doe.com",
+		})
+		require.NoError(t, err)
+	})
+	t.Run("Find User By Updated Email", func(t *testing.T) {
+		u, err := model.WithContext(context.Background()).Filter(database.SetParams(database.SetFilter("email", "jane@doe.com"))).FindFirst()
+		require.NoError(t, err)
+		require.NotEmpty(t, u)
+	})
+
+	t.Run("Find All Users", func(t *testing.T) {
+		u, err := model.Find()
+		require.NoError(t, err)
+		require.NotEmpty(t, u)
+
+	})
+
+	t.Run("Delete User By ID", func(t *testing.T) {
+		err := model.WithContext(context.Background()).Filter(database.SetParams(database.SetFilter("id", uuid.MustParse("e527865d-c83e-4c21-a54b-275f057ecb56")))).Delete()
+		require.NoError(t, err)
+	})
 }

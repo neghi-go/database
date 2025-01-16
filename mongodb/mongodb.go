@@ -20,6 +20,13 @@ type MongoModel[T any] struct {
 	client *mongo.Collection
 }
 
+func (m *MongoModel[T]) reset() {
+	m.filter = bson.D{}
+	m.limit = 0
+	m.offset = 0
+	m.order = bson.D{}
+}
+
 // Count implements database.Model.
 func (m *MongoModel[T]) Count() (count int64, err error) {
 	return m.client.CountDocuments(m.ctx, nil)
@@ -51,7 +58,7 @@ func (m *MongoModel[T]) Find() ([]*T, error) {
 	if err != nil {
 		return nil, err
 	}
-	result.Close(m.ctx)
+	defer result.Close(m.ctx)
 	for result.Next(m.ctx) {
 		var singleDoc bson.D
 		err := result.Decode(&singleDoc)
@@ -67,25 +74,26 @@ func (m *MongoModel[T]) Find() ([]*T, error) {
 
 		res = append(res, &singleModel)
 	}
-
+	m.reset()
 	return res, nil
 }
 
 // First implements database.Model.
-func (m *MongoModel[T]) First() (*T, error) {
+func (m *MongoModel[T]) FindFirst() (*T, error) {
 	var singleModel T
-	result := m.client.FindOne(m.ctx, m.filter, options.FindOne().
-		SetSort(m.order).SetSkip(m.offset))
 	var singleDoc bson.D
+
+	result := m.client.FindOne(m.ctx, m.filter, options.FindOne().
+		SetSort(m.order))
 	err := result.Decode(&singleDoc)
 	if err != nil {
 		return nil, err
 	}
-
 	err = convertFromBson(&singleModel, singleDoc)
 	if err != nil {
 		return nil, err
 	}
+	m.reset()
 	return &singleModel, nil
 }
 
@@ -149,7 +157,7 @@ func (m *MongoModel[T]) UpdateOne(data T) error {
 	if err != nil {
 		return err
 	}
-
+	m.reset()
 	return nil
 }
 
@@ -163,7 +171,7 @@ func (m *MongoModel[T]) UpdateMany(data T) error {
 	if err != nil {
 		return err
 	}
-
+	m.reset()
 	return nil
 }
 
@@ -191,5 +199,9 @@ func RegisterModel[T any](conn *mongoDatabase, coll string, model T) (database.M
 	return &MongoModel[T]{
 		client: col,
 		ctx:    context.Background(),
+		order:  bson.D{},
+		filter: bson.D{},
+		limit:  0,
+		offset: 0,
 	}, nil
 }
