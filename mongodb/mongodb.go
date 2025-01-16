@@ -145,7 +145,7 @@ func (m *MongoModel[T]) UpdateOne(data T) error {
 	if err != nil {
 		return err
 	}
-	_, err = m.client.UpdateOne(m.ctx, m.filter, doc)
+	_, err = m.client.UpdateOne(m.ctx, m.filter, bson.D{{Key: "$set", Value: doc}})
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func (m *MongoModel[T]) UpdateMany(data T) error {
 	if err != nil {
 		return err
 	}
-	_, err = m.client.UpdateMany(m.ctx, m.filter, doc)
+	_, err = m.client.UpdateMany(m.ctx, m.filter, bson.D{{Key: "$set", Value: doc}})
 	if err != nil {
 		return err
 	}
