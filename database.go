@@ -44,9 +44,25 @@ func EncodeModel(obj interface{}) (M, error) {
 	for _, p := range parsed {
 		var val interface{}
 		switch p.fieldValue.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		case reflect.Int8:
+			val = int8(p.fieldValue.Int())
+		case reflect.Int:
+			val = int(p.fieldValue.Int())
+		case reflect.Int16:
+			val = int16(p.fieldValue.Int())
+		case reflect.Int32:
+			val = int32(p.fieldValue.Int())
+		case reflect.Int64:
 			val = p.fieldValue.Int()
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		case reflect.Uint8:
+			val = uint8(p.fieldValue.Uint())
+		case reflect.Uint:
+			val = uint(p.fieldValue.Uint())
+		case reflect.Uint16:
+			val = uint16(p.fieldValue.Uint())
+		case reflect.Uint32:
+			val = uint32(p.fieldValue.Uint())
+		case reflect.Uint64:
 			val = p.fieldValue.Uint()
 		case reflect.Float32, reflect.Float64:
 			val = p.fieldValue.Float()
@@ -82,7 +98,6 @@ func DecodeModel(obj interface{}, data M) error {
 	if v.Kind() != reflect.Pointer {
 		return errors.New("expect a pointer to a struct")
 	}
-
 	p := v.Elem()
 	for i := 0; i < p.NumField(); i++ {
 		field := p.Field(i)
@@ -101,7 +116,28 @@ func DecodeModel(obj interface{}, data M) error {
 							field.Set(reflect.ValueOf(str))
 						}
 					default:
-						field.Set(reflect.ValueOf(d.Value))
+						switch field.Kind() {
+						case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+							val, err := handleIntTypes(d.Value)
+							if err != nil {
+								return err
+							}
+							field.Set(reflect.ValueOf(handleReflectIntKind(val, field.Kind())))
+						case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+							val, err := handleUintTypes(d.Value)
+							if err != nil {
+								return err
+							}
+							field.Set(reflect.ValueOf(handleReflectUintKind(val, field.Kind())))
+						case reflect.Float32, reflect.Float64:
+							val, err := handleFloatTypes(d.Value)
+							if err != nil {
+								return err
+							}
+							field.Set(reflect.ValueOf(handleReflectFloatKind(val, field.Kind())))
+						default:
+							field.Set(reflect.ValueOf(d.Value))
+						}
 					}
 
 				}
@@ -126,6 +162,108 @@ func getFieldname(fieldTags []string) string {
 		}
 	}
 	return ""
+}
+
+func handleIntTypes(value interface{}) (int64, error) {
+	switch value.(type) {
+	case int:
+		val, _ := value.(int)
+		return int64(val), nil
+	case int8:
+		val, _ := value.(int8)
+		return int64(val), nil
+	case int16:
+		val, _ := value.(int16)
+		return int64(val), nil
+	case int32:
+		val, _ := value.(int32)
+		return int64(val), nil
+	case int64:
+		val, _ := value.(int64)
+		return val, nil
+	default:
+		return 0, errors.New("invalid type provided!")
+	}
+}
+
+func handleReflectIntKind(val int64, kind reflect.Kind) interface{} {
+	switch kind {
+	case reflect.Int:
+		return int(val)
+	case reflect.Int8:
+		return int8(val)
+	case reflect.Int16:
+		return int16(val)
+	case reflect.Int32:
+		return int32(val)
+	case reflect.Int64:
+		return val
+	default:
+		return 0
+	}
+}
+
+func handleUintTypes(value interface{}) (uint64, error) {
+	switch value.(type) {
+	case uint:
+		val, _ := value.(uint)
+		return uint64(val), nil
+	case uint8:
+		val, _ := value.(uint8)
+		return uint64(val), nil
+	case uint16:
+		val, _ := value.(uint16)
+		return uint64(val), nil
+	case uint32:
+		val, _ := value.(uint32)
+		return uint64(val), nil
+	case uint64:
+		val, _ := value.(uint64)
+		return val, nil
+	default:
+		return 0, errors.New("invalid type provided!")
+	}
+}
+
+func handleReflectUintKind(val uint64, kind reflect.Kind) interface{} {
+	switch kind {
+	case reflect.Uint:
+		return uint(val)
+	case reflect.Uint8:
+		return uint8(val)
+	case reflect.Uint16:
+		return uint16(val)
+	case reflect.Uint32:
+		return uint32(val)
+	case reflect.Uint64:
+		return val
+	default:
+		return 0
+	}
+}
+
+func handleFloatTypes(value interface{}) (float64, error) {
+	switch value.(type) {
+	case uint:
+		val, _ := value.(float32)
+		return float64(val), nil
+	case float64:
+		val, _ := value.(float64)
+		return val, nil
+	default:
+		return 0, errors.New("invalid type provided!")
+	}
+}
+
+func handleReflectFloatKind(val float64, kind reflect.Kind) interface{} {
+	switch kind {
+	case reflect.Float32:
+		return float32(val)
+	case reflect.Float64:
+		return val
+	default:
+		return 0.0
+	}
 }
 
 type Model[T any] interface {

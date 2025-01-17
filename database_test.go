@@ -109,6 +109,7 @@ func TestDecodeModel(t *testing.T) {
 		ID        uuid.UUID `db:"id"`
 		Jon       string    `db:"jon"`
 		CreatedAt time.Time `db:"created_at"`
+		Age       int8      `db:"age"`
 	}
 	var res user
 	type args struct {
@@ -131,7 +132,7 @@ func TestDecodeModel(t *testing.T) {
 			name: "Test Pointer Struct",
 			args: args{
 				obj:  &res,
-				data: M{P{Key: "jon", Value: "jon"}, P{Key: "id", Value: uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")}, P{Key: "created_at", Value: time.Now()}}},
+				data: M{P{Key: "jon", Value: "jon"}, P{Key: "id", Value: uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")}, P{Key: "created_at", Value: time.Now()}, P{Key: "age", Value: int32(12)}}},
 			wantErr: false,
 		},
 	}

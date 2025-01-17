@@ -139,6 +139,7 @@ func TestModel(t *testing.T) {
 		Email     string    `db:"email,required,index,unique"`
 		Name      string    `db:"name,required"`
 		CreatedAt time.Time `db:"created_at"`
+		Attempt   int8      `db:"attempt"`
 	}
 
 	model, err := RegisterModel(mgd, "users", UserModel{})
@@ -152,6 +153,7 @@ func TestModel(t *testing.T) {
 			Email:     "jon@doe.com",
 			Name:      "Jon Doe",
 			CreatedAt: time.Now().UTC(),
+			Attempt:   1,
 		}
 		err := model.WithContext(context.Background()).Save(u)
 

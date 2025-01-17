@@ -1,7 +1,6 @@
 package mongodb
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -173,7 +172,6 @@ func Test_convertFromBson(t *testing.T) {
 			if err := convertFromBson(tt.args.obj, tt.args.doc); (err != nil) != tt.wantErr {
 				t.Errorf("convertFromBson() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			fmt.Println(tt.args.obj)
 		})
 	}
 }
