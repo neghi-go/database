@@ -161,32 +161,32 @@ func TestModel(t *testing.T) {
 	})
 
 	t.Run("Find User By Email", func(t *testing.T) {
-		u, err := model.WithContext(context.Background()).Filter(database.SetParams(database.SetFilter("email", "jon@doe.com"))).FindFirst()
+		u, err := model.WithContext(context.Background()).Query(database.WithFilter("email", "jon@doe.com")).First()
 		require.NoError(t, err)
 		require.NotEmpty(t, u)
 	})
 
 	t.Run("Update By ID", func(t *testing.T) {
-		err := model.WithContext(context.Background()).Filter(database.SetParams(database.SetFilter("id", uuid.MustParse("e527865d-c83e-4c21-a54b-275f057ecb56")))).UpdateOne(UserModel{
+		err := model.WithContext(context.Background()).Query(database.WithFilter("id", uuid.MustParse("e527865d-c83e-4c21-a54b-275f057ecb56"))).Update(UserModel{
 			Email: "jane@doe.com",
 		})
 		require.NoError(t, err)
 	})
 	t.Run("Find User By Updated Email", func(t *testing.T) {
-		u, err := model.WithContext(context.Background()).Filter(database.SetParams(database.SetFilter("email", "jane@doe.com"))).FindFirst()
+		u, err := model.WithContext(context.Background()).Query(database.WithFilter("email", "jane@doe.com")).First()
 		require.NoError(t, err)
 		require.NotEmpty(t, u)
 	})
 
 	t.Run("Find All Users", func(t *testing.T) {
-		u, err := model.Find()
+		u, err := model.WithContext(context.Background()).Query().All()
 		require.NoError(t, err)
 		require.NotEmpty(t, u)
 
 	})
 
 	t.Run("Delete User By ID", func(t *testing.T) {
-		err := model.WithContext(context.Background()).Filter(database.SetParams(database.SetFilter("id", uuid.MustParse("e527865d-c83e-4c21-a54b-275f057ecb56")))).Delete()
+		err := model.WithContext(context.Background()).Query(database.WithFilter("id", uuid.MustParse("e527865d-c83e-4c21-a54b-275f057ecb56"))).Delete()
 		require.NoError(t, err)
 	})
 }

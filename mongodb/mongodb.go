@@ -2,7 +2,7 @@ package mongodb
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/neghi-go/database"
@@ -20,126 +20,175 @@ type MongoModel[T any] struct {
 	client *mongo.Collection
 }
 
-func (m *MongoModel[T]) reset() {
-	m.filter = bson.D{}
-	m.limit = 0
-	m.offset = 0
-	m.order = bson.D{}
-}
-
-// Count implements database.Model.
-func (m *MongoModel[T]) Count() (count int64, err error) {
-	return m.client.CountDocuments(m.ctx, nil)
-
-}
-
-// Delete implements database.Model.
-func (m *MongoModel[T]) Delete() error {
-	_, err := m.client.DeleteOne(m.ctx, m.filter)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Filter implements database.Model.
-func (m *MongoModel[T]) Filter(filter database.D) database.Model[T] {
-	for _, f := range filter {
-		m.filter = append(m.filter, bson.E{Key: f.Key(), Value: f.Value()})
-	}
-	return m
-}
-
-// Find implements database.Model.
-func (m *MongoModel[T]) Find() ([]*T, error) {
+// All implements database.Query.
+func (m *MongoModel[T]) All() ([]*T, error) {
 	var res []*T
 	result, err := m.client.Find(m.ctx, m.filter, options.Find().
-		SetSort(m.order).SetLimit(m.limit).SetSkip(m.offset))
+		SetLimit(m.limit).SetSkip(m.offset).SetSort(m.order))
 	if err != nil {
 		return nil, err
 	}
+
 	defer result.Close(m.ctx)
+
 	for result.Next(m.ctx) {
-		var singleDoc bson.D
-		err := result.Decode(&singleDoc)
-		if err != nil {
+		var single bson.D
+		if err := result.Decode(&single); err != nil {
 			return nil, err
 		}
-
-		var singleModel T
-		err = convertFromBson(&singleModel, singleDoc)
-		if err != nil {
+		var singleRes T
+		if err := convertFromBson(&singleRes, single); err != nil {
 			return nil, err
 		}
-
-		res = append(res, &singleModel)
+		res = append(res, &singleRes)
 	}
 	m.reset()
 	return res, nil
 }
 
-// First implements database.Model.
-func (m *MongoModel[T]) FindFirst() (*T, error) {
-	var singleModel T
-	var singleDoc bson.D
+// Count implements database.Query.
+func (m *MongoModel[T]) Count() (int64, error) {
+	count, err := m.client.CountDocuments(m.ctx, m.filter, options.Count().SetLimit(m.limit).
+		SetSkip(m.offset))
+	if err != nil {
+		return 0, err
+	}
+	m.reset()
+	return count, nil
+}
 
+// Delete implements database.Query.
+func (m *MongoModel[T]) Delete() error {
+	_, err := m.client.DeleteOne(m.ctx, m.filter)
+	if err != nil {
+		return err
+	}
+	m.reset()
+	return nil
+}
+
+// DeleteMany implements database.Query.
+func (m *MongoModel[T]) DeleteMany() error {
+	_, err := m.client.DeleteMany(m.ctx, m.filter)
+	if err != nil {
+		return err
+	}
+	m.reset()
+	return nil
+}
+
+// First implements database.Query.
+func (m *MongoModel[T]) First() (*T, error) {
+	var res T
 	result := m.client.FindOne(m.ctx, m.filter, options.FindOne().
 		SetSort(m.order))
-	err := result.Decode(&singleDoc)
-	if err != nil {
+
+	var single bson.D
+	if err := result.Decode(&single); err != nil {
 		return nil, err
 	}
-	err = convertFromBson(&singleModel, singleDoc)
-	if err != nil {
+	if err := convertFromBson(&res, single); err != nil {
 		return nil, err
 	}
 	m.reset()
-	return &singleModel, nil
+	return &res, nil
 }
 
-// Limit implements database.Model.
-func (m *MongoModel[T]) Limit(limit int64) database.Model[T] {
-	m.limit = limit
-	return m
+// Update implements database.Query.
+func (m *MongoModel[T]) Update(doc T) error {
+	d, err := convertToBson(doc)
+	if err != nil {
+		return err
+	}
+	result, err := m.client.UpdateOne(m.ctx, m.filter, bson.D{{Key: "$set", Value: d}})
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount < 0 {
+		return errors.New("error updating document")
+	}
+	m.reset()
+	return nil
 }
 
-// Offset implements database.Model.
-func (m *MongoModel[T]) Offset(offset int64) database.Model[T] {
-	m.offset = offset
-	return m
+// UpdateMany implements database.Query.
+func (m *MongoModel[T]) UpdateMany(doc T) error {
+	d, err := convertToBson(doc)
+	if err != nil {
+		return err
+	}
+	result, err := m.client.UpdateMany(m.ctx, m.filter, bson.D{{Key: "$set", Value: d}})
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount < 0 {
+		return errors.New("error updating documents")
+	}
+	m.reset()
+	return nil
 }
 
-// Order implements database.Model.
-func (m *MongoModel[T]) Order(order database.D) database.Model[T] {
-	for _, o := range order {
-		var val interface{}
-		sortKey, ok := o.Value().(database.OrderType)
-		if !ok {
-			fmt.Println("error: Invalid Order value provided")
-			break
-		}
-		switch sortKey {
-		case database.ASC:
-			val = -1
-		case database.DESC:
-			val = 1
+// ExecRaw implements database.Store.
+func (m *MongoModel[T]) ExecRaw() error {
+	panic("unimplemented")
+}
+
+// Query implements database.Store.
+func (m *MongoModel[T]) Query(query_params ...database.Params) database.Query[T] {
+	var q_params []database.QueryStruct
+
+	for _, param := range query_params {
+		q_params = append(q_params, param())
+	}
+
+	for _, qq := range q_params {
+		switch qq.Key() {
+		case database.QueryFilter:
+			val, ok := qq.Value().(database.FilterStruct)
+			if !ok {
+				panic(errors.New("unsupported"))
+			}
+			m.filter = append(m.filter, bson.E{Key: val.Key(), Value: val.Value()})
+		case database.QuerySort:
+			var val int
+			order_val, ok := qq.Value().(database.OrderStruct)
+			if !ok {
+				panic(errors.New("unsupported"))
+			}
+			switch order_val.Value() {
+			case database.ASC:
+				val = -1
+			case database.DESC:
+				val = 1
+			default:
+				panic(errors.New("unsupported"))
+			}
+			m.order = append(m.order, bson.E{Key: order_val.Key(), Value: val})
+		case database.QueryLimit:
+			val, ok := qq.Value().(int64)
+			if !ok {
+			}
+			m.limit = val
+		case database.QueryOffset:
+			val, ok := qq.Value().(int64)
+			if !ok {
+			}
+			m.offset = val
 		default:
-			fmt.Println("unsupported Order Key type")
-			return nil
+			panic(errors.New("unsupported"))
 		}
-		m.order = append(m.order, bson.E{Key: o.Key(), Value: val})
 	}
 	return m
 }
 
-// Save implements database.Model.
-func (m *MongoModel[T]) Save(data ...T) error {
-	for _, d := range data {
-		doc, err := convertToBson(d)
+// Save implements database.Store.
+func (m *MongoModel[T]) Save(doc ...T) error {
+	for _, d := range doc {
+		v, err := convertToBson(d)
 		if err != nil {
 			return err
 		}
-		_, err = m.client.InsertOne(m.ctx, doc)
+		_, err = m.client.InsertOne(m.ctx, v)
 		if err != nil {
 			return err
 		}
@@ -147,38 +196,17 @@ func (m *MongoModel[T]) Save(data ...T) error {
 	return nil
 }
 
-// Update implements database.Model.
-func (m *MongoModel[T]) UpdateOne(data T) error {
-	doc, err := convertToBson(data)
-	if err != nil {
-		return err
-	}
-	_, err = m.client.UpdateOne(m.ctx, m.filter, bson.D{{Key: "$set", Value: doc}})
-	if err != nil {
-		return err
-	}
-	m.reset()
-	return nil
-}
-
-// Update implements database.Model.
-func (m *MongoModel[T]) UpdateMany(data T) error {
-	doc, err := convertToBson(data)
-	if err != nil {
-		return err
-	}
-	_, err = m.client.UpdateMany(m.ctx, m.filter, bson.D{{Key: "$set", Value: doc}})
-	if err != nil {
-		return err
-	}
-	m.reset()
-	return nil
-}
-
-// WithContext implements database.Model.
+// WithContext implements database.Store.
 func (m *MongoModel[T]) WithContext(ctx context.Context) database.Model[T] {
 	m.ctx = ctx
 	return m
+}
+
+func (m *MongoModel[T]) reset() {
+	m.filter = bson.D{}
+	m.limit = 0
+	m.offset = 0
+	m.order = bson.D{}
 }
 
 func RegisterModel[T any](conn *mongoDatabase, coll string, model T) (database.Model[T], error) {

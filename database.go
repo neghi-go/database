@@ -1,7 +1,6 @@
 package database
 
 import (
-	"context"
 	"errors"
 	"reflect"
 	"slices"
@@ -264,29 +263,4 @@ func handleReflectFloatKind(val float64, kind reflect.Kind) interface{} {
 	default:
 		return 0.0
 	}
-}
-
-type Model[T any] interface {
-	// MISC
-	WithContext(ctx context.Context) Model[T]
-
-	//SAVE
-	Save(data ...T) error
-
-	//QUERY
-	Filter(filter D) Model[T]
-	Limit(limit int64) Model[T]
-	Offset(offset int64) Model[T]
-	Order(order D) Model[T]
-	Count() (count int64, err error)
-
-	FindFirst() (*T, error)
-	Find() ([]*T, error)
-
-	//UPDATE
-	UpdateOne(data T) error
-	UpdateMany(data T) error
-
-	//DELETE
-	Delete() error
 }

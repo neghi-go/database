@@ -1,36 +1,46 @@
 package database
 
-type E struct {
-	key   string
+type QueryKey string
+
+var (
+	QueryFilter QueryKey = "filter"
+	QuerySort   QueryKey = "sort"
+	QueryLimit  QueryKey = "limit"
+	QueryOffset QueryKey = "offset"
+)
+
+type QueryStruct struct {
+	key   QueryKey
 	value interface{}
 }
 
-func (e E) Key() string {
-	return e.key
-}
-func (e E) Value() interface{} {
-	return e.value
+func (q QueryStruct) Key() QueryKey {
+	return q.key
 }
 
-type D []E
-
-type Params func() E
-
-func SetParams(params ...Params) D {
-	res := D{}
-	for _, p := range params {
-		res = append(res, p())
-	}
-	return res
+func (q QueryStruct) Value() interface{} {
+	return q.value
 }
 
-func SetFilter(key string, value interface{}) Params {
-	return func() E {
-		return E{key: key, value: value}
-	}
-}
+type Params func() QueryStruct
 
+type OrderStruct struct {
+	key   string
+	value OrderType
+}
 type OrderType int
+
+func (o OrderType) String() string {
+	return orderTypeMap[o]
+}
+
+func (o OrderStruct) Key() string {
+	return o.key
+}
+
+func (o OrderStruct) Value() OrderType {
+	return o.value
+}
 
 const (
 	ASC OrderType = iota
@@ -42,12 +52,57 @@ var orderTypeMap = map[OrderType]string{
 	DESC: "desc",
 }
 
-func (o OrderType) String() string {
-	return orderTypeMap[o]
+func WithOrder(key string, value OrderType) Params {
+	return func() QueryStruct {
+		return QueryStruct{
+			key: QuerySort,
+			value: OrderStruct{
+				key:   key,
+				value: value,
+			},
+		}
+	}
 }
 
-func SetOrder(key string, order OrderType) Params {
-	return func() E {
-		return E{key: key, value: order}
+type FilterStruct struct {
+	key   string
+	value interface{}
+}
+
+func (f FilterStruct) Key() string {
+	return f.key
+}
+
+func (f FilterStruct) Value() interface{} {
+	return f.value
+}
+
+func WithFilter(key string, value interface{}) Params {
+	return func() QueryStruct {
+		return QueryStruct{
+			key: QueryFilter,
+			value: FilterStruct{
+				key:   key,
+				value: value,
+			},
+		}
+	}
+}
+
+func WithLimit(value int64) Params {
+	return func() QueryStruct {
+		return QueryStruct{
+			key:   QueryLimit,
+			value: value,
+		}
+	}
+}
+
+func WithOffset(value int64) Params {
+	return func() QueryStruct {
+		return QueryStruct{
+			key:   QueryOffset,
+			value: value,
+		}
 	}
 }
