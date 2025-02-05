@@ -17,15 +17,14 @@ var (
 )
 
 var pool = sync.Pool{
-    New: func() any {
-        return &parsedField{
-            fieldValue: reflect.Value{},
-            fieldName: "",
-            fieldTag: make([]string, 0),
-        }
-    },
+	New: func() any {
+		return &parsedField{
+			fieldValue: reflect.Value{},
+			fieldName:  "",
+			fieldTag:   make([]string, 0),
+		}
+	},
 }
-
 
 // ParserField is contains information about the fields in the struct that was parsed,
 // information pertaining to its value, type, name, structtags etc
@@ -35,14 +34,14 @@ type parsedField struct {
 	fieldTag   []string
 }
 
-func(p *parsedField)Release(){
-    p.fieldName= ""
-    p.fieldTag = make([]string, 0)
-    p.fieldValue = reflect.Value{}
+func (p *parsedField) Release() {
+	p.fieldName = ""
+	p.fieldTag = make([]string, 0)
+	p.fieldValue = reflect.Value{}
 }
 
 func parse(struct_tag string, obj interface{}) ([]parsedField, error) {
-    sliceOfParsed := make([]parsedField, 0)
+	sliceOfParsed := make([]parsedField, 0)
 	v := reflect.ValueOf(obj)
 
 	if v.Kind() != reflect.Struct {
@@ -51,7 +50,7 @@ func parse(struct_tag string, obj interface{}) ([]parsedField, error) {
 	t := v.Type()
 	for i := 0; i < v.NumField(); i++ {
 		field := t.Field(i)
-        single, _ := pool.Get().(*parsedField)
+		single, _ := pool.Get().(*parsedField)
 		single.fieldName = field.Name
 		single.fieldValue = v.Field(i)
 
@@ -67,10 +66,9 @@ func parse(struct_tag string, obj interface{}) ([]parsedField, error) {
 		attr := strings.Split(def, ",")
 		single.fieldTag = attr
 		sliceOfParsed = append(sliceOfParsed, *single)
-        single.Release()
-        pool.Put(single)
+		single.Release()
+		pool.Put(single)
 	}
-
 	return sliceOfParsed, nil
 }
 

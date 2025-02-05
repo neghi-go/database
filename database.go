@@ -121,19 +121,25 @@ func DecodeModel(obj interface{}, data M) error {
 							if err != nil {
 								return err
 							}
-							field.Set(reflect.ValueOf(handleReflectIntKind(val, field.Kind())))
+							field.SetInt(val)
 						case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 							val, err := handleUintTypes(d.Value)
 							if err != nil {
 								return err
 							}
-							field.Set(reflect.ValueOf(handleReflectUintKind(val, field.Kind())))
+							field.SetUint(val)
 						case reflect.Float32, reflect.Float64:
 							val, err := handleFloatTypes(d.Value)
 							if err != nil {
 								return err
 							}
-							field.Set(reflect.ValueOf(handleReflectFloatKind(val, field.Kind())))
+							field.SetFloat(val)
+						case reflect.String:
+							val, ok := d.Value.(string)
+							if !ok {
+								return errors.New("not ok")
+							}
+							field.SetString(val)
 						default:
 							field.Set(reflect.ValueOf(d.Value))
 						}
@@ -185,23 +191,6 @@ func handleIntTypes(value interface{}) (int64, error) {
 	}
 }
 
-func handleReflectIntKind(val int64, kind reflect.Kind) interface{} {
-	switch kind {
-	case reflect.Int:
-		return int(val)
-	case reflect.Int8:
-		return int8(val)
-	case reflect.Int16:
-		return int16(val)
-	case reflect.Int32:
-		return int32(val)
-	case reflect.Int64:
-		return val
-	default:
-		return 0
-	}
-}
-
 func handleUintTypes(value interface{}) (uint64, error) {
 	switch value.(type) {
 	case uint:
@@ -224,23 +213,6 @@ func handleUintTypes(value interface{}) (uint64, error) {
 	}
 }
 
-func handleReflectUintKind(val uint64, kind reflect.Kind) interface{} {
-	switch kind {
-	case reflect.Uint:
-		return uint(val)
-	case reflect.Uint8:
-		return uint8(val)
-	case reflect.Uint16:
-		return uint16(val)
-	case reflect.Uint32:
-		return uint32(val)
-	case reflect.Uint64:
-		return val
-	default:
-		return 0
-	}
-}
-
 func handleFloatTypes(value interface{}) (float64, error) {
 	switch value.(type) {
 	case uint:
@@ -251,16 +223,5 @@ func handleFloatTypes(value interface{}) (float64, error) {
 		return val, nil
 	default:
 		return 0, errors.New("invalid type provided!")
-	}
-}
-
-func handleReflectFloatKind(val float64, kind reflect.Kind) interface{} {
-	switch kind {
-	case reflect.Float32:
-		return float32(val)
-	case reflect.Float64:
-		return val
-	default:
-		return 0.0
 	}
 }
